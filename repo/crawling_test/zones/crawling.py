@@ -1,54 +1,34 @@
 import requests
-from bs4 import BeautifulSoup
-from selenium import webdriver
+import xmltodict
 
 from .models import CarZone
 
 
 class Crawling:
-    driver = webdriver.Chrome('/Users/seonwoong-hwang/Downloads/chromedriver')
-    driver.implicitly_wait(5)
+    # auth_key : 공공데이터 오픈 API 접속
+    auth_key = '0s72jicHY1E68xaoFc7QOBVPw%2Fz371oN%2BQ2D22%2BAIvjSJsp5RmE5XsXobvWD0mHeo0MPsShSNMTm3%2FAiKM9eAw%3D%3D'
+    url = 'http://openapi.tago.go.kr/openapi/service/CarSharingInfoService/getCarZoneListByAddr'
+    queryParams = '?' + 'ServiceKey=' + f'{auth_key}' \
+                  + '&pageNo=' + '1' \
+                  + '&numOfRows=' + '350' \
+                  + '&zoneAddr=' + '서울'
 
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_5) AppleWebKit/537.36 (KHTML, like Gecko)'
-                      'Chrome/83.0.4103.106 Safari/537.36 '
-    }
+    url = url + queryParams
+    content = requests.get(url).content
 
-    # 쏘카존 안내 - 현재 서울지역 총 페이지 수
-    total_page = 245
-    for page_index in range(total_page):
+    # xml 형식 -> 딕셔너리 형태로 변경
+    content_to_dict = xmltodict.parse(content)
 
-        # 쏘카존 안내 - 예) 서울 탭 1페이지
-        driver.get(f'https://blog.socar.kr/category/쏘카존 안내/서울?page={page_index + 1}')
+    entry_list = []
+    for item in content_to_dict['response']['body']['items']['item']:
+        # 운영종료 제외
+        if not '운영종료' in item['zoneName']:
+            entry_list.append(item)
 
-        # 페이지 당 쏘카존 상세 페이지 URL 추출
-        html_depth_1 = requests.get(f'https://blog.socar.kr/category/쏘카존 안내/서울?page={page_index + 1}',
-                                    headers=headers).text
-        soup_depth_1 = BeautifulSoup(html_depth_1, 'html.parser')
-        detail_pages = soup_depth_1.find_all('a', {'class': 'ellipsis'})
+    print(len(entry_list))
+    for i in entry_list:
+        print(i)
 
-        # 상세 페이지 접근하여 DB 저장
-        for i in detail_pages:
-            target_base_url = 'https://blog.socar.kr'
-            detail_page_url = target_base_url + i['href']
-
-            html_depth_2 = requests.get(detail_page_url, headers=headers).text
-            soup_depth_2 = BeautifulSoup(html_depth_2, 'html.parser')
-
-            zone_informations = soup_depth_2.find_all('span', {'style': 'font-size: 16px; letter-spacing: -0.5px;'})
-
-            # 예외 사항
-            if not zone_informations:
-                zone_informations = soup_depth_2.find_all('span', {'style': 'font-size: 11pt; letter-spacing: -0.5px;'})
-                break
-
-            zone_address = zone_informations[0].text
-            zone_detail = zone_informations[1].text
-
-
-            CarZone.objects.get_or_create(address=zone_address, detail=zone_detail)
-
-    driver.close()
 
 start_crawling = Crawling()
 start_crawling
