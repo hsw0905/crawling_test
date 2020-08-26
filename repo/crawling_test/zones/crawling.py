@@ -25,9 +25,14 @@ class Crawling:
         if not '운영종료' in item['zoneName']:
             entry_list.append(item)
 
-    print(len(entry_list))
-    for i in entry_list:
-        print(i)
+    for entry in entry_list:
+        CarZone.objects.get_or_create(
+            address=entry['address'],
+            latitude=entry['latitude'],
+            longitude=entry['longitude'],
+            zone_id=entry['zoneId'],
+            name=entry['zoneName']
+        )
 
 
 start_crawling = Crawling()
