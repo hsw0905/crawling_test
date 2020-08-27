@@ -46,6 +46,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'core',
     'zones',
+    'cars',
+    'prices',
 ]
 
 MIDDLEWARE = [
